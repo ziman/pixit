@@ -45,7 +45,7 @@ data State = State
   { _players :: Map PlayerId Player
   , _nextPlayerId :: PlayerId
   , _connections :: Bimap Connection PlayerId
-  , _wordlist :: [Text]
+  -- , _wordlist :: [Text]
   }
   deriving Show
 
@@ -157,9 +157,11 @@ handle Api.Join{playerName} = do
   broadcastStateUpdate
 
 handle Api.Broadcast_C2S{broadcast} = do
-  connections <- Bimap.keys <$> use connections
-  for_ connections $ \connection ->
-    send connection Api.Broadcast_S2C{broadcast}
+  Self selfPid _self <- getSelf  -- TODO: remove this
+  connectionsPids <- Bimap.toList <$> use connections
+  for_ connectionsPids $ \(connection, pid) ->
+    when (pid /= selfPid) $
+      send connection Api.Broadcast_S2C{broadcast}
 
 game :: Engine.Game State Effect () Api.Message_C2S Api.Message_S2C
 game = Engine.Game
@@ -177,12 +179,12 @@ mkInitialState :: FilePath -> IO State
 mkInitialState fnLanguage = do
   wordlist <- Text.words <$> Text.readFile fnLanguage
   g <- newStdGen
-  let (stdGen, wordlistShuffled) = shuffle g $ wordlist
+  let (_stdGen, _wordlistShuffled) = shuffle g $ wordlist
   pure $ State
     { _players = Map.empty
     , _connections = Bimap.empty
     , _nextPlayerId = PlayerId 1
-    , _wordlist = wordlistShuffled
+    -- , _wordlist = wordlistShuffled
     }
 
 runEffect :: Effect -> IO ()
