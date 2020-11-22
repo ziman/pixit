@@ -4,6 +4,7 @@ import Prelude
 import Effect (Effect)
 import Effect.Exception (throw)
 
+import Data.Tuple (Tuple(..))
 import Data.Maybe (Maybe(..))
 
 import React.Basic (JSX)
@@ -11,6 +12,7 @@ import React.Basic.Events (EventHandler)
 import React.Basic.DOM.Events (capture_)
 import React.Basic.Classic (Self, createComponent, make)
 import React.Basic.DOM as R
+import React.Basic.DOM.SVG as SVG
 
 import Graphics.Canvas
   ( canvasToDataURL, getContext2D, moveTo, lineTo, stroke
@@ -118,24 +120,58 @@ onMove self = canvasHandler \evt ->
         { lineStart = Just {x: evt.x, y: evt.y}
         }
 
-tool :: Self Props State -> R.CSS -> (State -> Boolean) -> (State -> State) -> JSX
-tool self css isActive onClick =
-  R.li
-  { className:
-      if isActive self.state
-        then "active"
-        else "inactive"
-  , onClick: capture_ (self.setState onClick)
-  , style: css
-  }
-
 swatch :: Self Props State -> Api.Colour -> JSX
 swatch self col =
-  tool
-    self
-    (R.css {"background-color": col})
-    (\st -> st.colour == col)
-    _{colour = col}
+  R.li
+  { className:
+      if self.state.colour == col
+        then "active"
+        else "inactive"
+  , onClick: capture_ $ self.setState _{colour = col}
+  , children:
+    [ SVG.svg
+      { width: "40"
+      , height: "40"
+      , xmlns: "http://www.w3.org/2000/svg"
+      , children:
+        [ SVG.rect
+          { width: "40"
+          , height: "40"
+          , rx: "5"
+          , fill: col
+          }
+        ]
+      }
+    ]
+  }
+
+thick :: Self Props State -> Tuple Number Number -> JSX
+thick self (Tuple t toolT) =
+  R.li
+  { className:
+      if self.state.thickness == t
+        then "active"
+        else "inactive"
+  , onClick: capture_ $ self.setState _{thickness = t}
+  , children:
+    [ SVG.svg
+      { width: "40"
+      , height: "40"
+      , xmlns: "http://www.w3.org/2000/svg"
+      , children:
+        [ SVG.line
+          { x1: "0"
+          , y1: "30"
+          , x2: "40"
+          , y2: "10"
+          , stroke: "black"
+          , strokeWidth: show toolT
+          , strokeLinecap: "round"
+          }
+        ]
+      }
+    ]
+  }
 
 render :: Self Props State -> JSX
 render self =
@@ -154,9 +190,34 @@ render self =
     , R.ul
       { className: "toolbox"
       , children:
-        [ swatch self "#000000"
-        , swatch self "#FF0000"
-        ]
+          map (swatch self)
+            [ "#000000"
+            , "#880000"
+            , "#008800"
+            , "#000088"
+            , "#888800"
+            , "#880088"
+            , "#008888"
+            , "#888888"
+            , "#FF0000"
+            , "#00FF00"
+            , "#0000FF"
+            , "#FFFF00"
+            , "#FF00FF"
+            , "#FFFFFF"
+            ]
+       }
+    , R.ul
+      { className: "toolbox"
+      , children:
+          map (thick self)
+            [ Tuple 1.0     1.0
+            , Tuple 3.0     3.0
+            , Tuple 5.0     5.0
+            , Tuple 10.0    10.0
+            , Tuple 40.0    20.0
+            , Tuple 100.0   50.0
+            ]
       }
     ]
   }
@@ -165,7 +226,7 @@ new :: Props -> JSX
 new = make (createComponent "Placeholder")
   { initialState:
     { lineStart: Nothing
-    , thickness: 3.0
+    , thickness: 5.0
     , colour: "#000000"
     }
   , render
