@@ -107,11 +107,13 @@ onUndo self = do
       Just dataUrl -> do
          self.setState _{history = history'}
          onUpdateBitmap dataUrl
+         self.props.onUpdateBitmap dataUrl
 
       Nothing -> do
          -- no more history
          self.setState _{history = history'}  -- history' = []
          clearCanvas
+         -- we should broadcast an empty canvas here but meh
 
 -- TODO:
 -- make a background timer job
