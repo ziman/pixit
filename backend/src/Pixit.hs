@@ -9,6 +9,7 @@ import Data.Foldable hiding (length)
 import Data.Text (Text)
 import Data.Map.Strict (Map)
 import Data.Bimap (Bimap)
+import qualified Data.List as List
 import qualified Data.Bimap as Bimap
 import qualified Data.Map.Strict as Map
 import qualified Data.Vector as Vec
@@ -178,6 +179,7 @@ shuffle g xs =
 mkInitialState :: FilePath -> IO State
 mkInitialState fnLanguage = do
   wordlist <- Text.words <$> Text.readFile fnLanguage
+  putStrLn $ "loaded " ++ show (List.length wordlist) ++ " words"
   g <- newStdGen
   let (_stdGen, _wordlistShuffled) = shuffle g $ wordlist
   pure $ State
