@@ -6,6 +6,7 @@ import Effect.Exception (throw)
 
 import Data.Tuple (Tuple(..))
 import Data.Maybe (Maybe(..))
+import Data.Array as Array
 
 import React.Basic (JSX)
 import React.Basic.Events (EventHandler)
@@ -20,6 +21,7 @@ import Graphics.Canvas
   , CanvasElement, setLineCap, setLineJoin, beginPath
   , LineCap(..), LineJoin(..)
   , tryLoadImage, drawImage
+  , getCanvasDimensions, clearRect
   )
 
 import Api as Api
@@ -34,6 +36,7 @@ type State =
   { lineStart :: Maybe Api.Point
   , thickness :: Number
   , colour :: Api.Colour
+  , history :: Array Api.Base64Png
   }
 
 onDraw :: Api.Segment -> Effect Unit
@@ -45,12 +48,23 @@ onDraw segment =
 onUpdateBitmap :: Api.Base64Png -> Effect Unit
 onUpdateBitmap dataUrl =
   tryLoadImage dataUrl case _ of
-    Nothing -> pure unit  -- not loadable
+    Nothing -> throw "invalid data url"
     Just img -> getCanvasElementById "canvas" >>= case _ of
       Nothing -> throw "could not find canvas"
       Just canvas -> do
+        dim <- getCanvasDimensions canvas
         g <- getContext2D canvas
+        clearRect g {x: 0.0, y: 0.0, width: dim.width, height: dim.height}
         drawImage g img 0.0 0.0
+
+clearCanvas :: Effect Unit
+clearCanvas =
+  getCanvasElementById "canvas" >>= case _ of
+    Nothing -> throw "could not find canvas"
+    Just canvas -> do
+      dim <- getCanvasDimensions canvas
+      g <- getContext2D canvas
+      clearRect g {x: 0.0, y: 0.0, width: dim.width, height: dim.height}
 
 drawSegment :: CanvasElement -> Api.Segment -> Effect Unit
 drawSegment canvas segment = do
@@ -85,19 +99,41 @@ onDown self = canvasHandler \evt -> do
     { lineStart = Just {x: evt.x, y: evt.y}
     }
 
+onUndo :: Self Props State -> Effect Unit
+onUndo self = do
+  case Array.tail self.state.history of
+    Nothing -> pure unit  -- history empty, nothing to do
+    Just history' -> case Array.head history' of
+      Just dataUrl -> do
+         self.setState _{history = history'}
+         onUpdateBitmap dataUrl
+
+      Nothing -> do
+         -- no more history
+         self.setState _{history = history'}  -- history' = []
+         clearCanvas
+
+-- TODO:
+-- make a background timer job
+-- that checks self.state to see if there's been an update
+-- if so, send bitmap, clear dirty flag
+--
+-- doing this synchronously warps the ends of curves
+commitBitmap :: Self Props State -> CanvasElement -> Effect Unit
+commitBitmap self canvas = do
+  dataUrl <- canvasToDataURL canvas
+  self.setState \st -> st
+    { history = Array.take 32 (Array.cons dataUrl st.history)
+    }
+  self.props.onUpdateBitmap dataUrl
+
 onUp :: Self Props State -> EventHandler
 onUp self = canvasHandler \evt ->
   case self.state.lineStart of
     Nothing -> pure unit
     Just _ -> do
       self.setState _{lineStart = Nothing}
-      self.props.onUpdateBitmap =<< canvasToDataURL evt.canvas
-      -- TODO:
-      -- make a background timer job
-      -- that checks self.state to see if there's been an update
-      -- if so, send bitmap, clear dirty flag
-      --
-      -- doing this synchronously warps the ends of curves
+      commitBitmap self evt.canvas
 
 onLeave :: Self Props State -> EventHandler
 onLeave self = canvasHandler \evt ->
@@ -107,7 +143,7 @@ onLeave self = canvasHandler \evt ->
       drawSegmentWrapper self src evt
 
       self.setState _{lineStart = Nothing}
-      self.props.onUpdateBitmap =<< canvasToDataURL evt.canvas
+      commitBitmap self evt.canvas
 
 onMove :: Self Props State -> EventHandler
 onMove self = canvasHandler \evt ->
@@ -219,6 +255,18 @@ render self =
             , Tuple 100.0   50.0
             ]
       }
+    , R.ul
+      { className: "toolbox"
+      , children:
+        [ R.li
+          { children:
+            [ R.img {src: "/undo.png", title: "Undo"}
+            ]
+          , className: "inactive"
+          , onClick: capture_ $ onUndo self
+          }
+        ]
+      }
     ]
   }
 
@@ -228,6 +276,7 @@ new = make (createComponent "Placeholder")
     { lineStart: Nothing
     , thickness: 5.0
     , colour: "#000000"
+    , history: []
     }
   , render
   }
