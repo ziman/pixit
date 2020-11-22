@@ -90,10 +90,14 @@ render self =
           { className: "main"
           , children:
             [ Canvas.new
-              { onDraw: \_seg -> do
-                  pure unit
-              , onUpdateBitmap: \bmp -> do
-                  pure unit
+              { onDraw: \segment -> do
+                  sock.send $ Api.Broadcast_C2S
+                    { broadcast: Api.Draw {segment}
+                    }
+              , onUpdateBitmap: \bitmap -> do
+                  sock.send $ Api.Broadcast_C2S
+                    { broadcast: Api.UpdateBitmap {bitmap}
+                    }
               }
             ]
           }
