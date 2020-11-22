@@ -14,7 +14,9 @@ import React.Basic.DOM as R
 import Graphics.Canvas
   ( canvasToDataURL, getContext2D, moveTo, lineTo, stroke
   , setLineWidth, setStrokeStyle, getCanvasElementById
-  , CanvasElement
+  , CanvasElement, setLineCap, setLineJoin
+  , LineCap(..), LineJoin(..)
+  , tryLoadImage, drawImage
   )
 
 import Api as Api
@@ -38,13 +40,22 @@ onDraw segment =
     Just canvas -> drawSegment canvas segment
 
 onUpdateBitmap :: Api.Base64Png -> Effect Unit
-onUpdateBitmap _bmp = pure unit
+onUpdateBitmap dataUrl =
+  tryLoadImage dataUrl case _ of
+    Nothing -> pure unit  -- not loadable
+    Just img -> getCanvasElementById "canvas" >>= case _ of
+      Nothing -> throw "could not find canvas"
+      Just canvas -> do
+        g <- getContext2D canvas
+        drawImage g img 0.0 0.0
 
 drawSegment :: CanvasElement -> Api.Segment -> Effect Unit
 drawSegment canvas segment = do
   g <- getContext2D canvas
   setStrokeStyle g segment.colour
   setLineWidth g segment.thickness
+  setLineCap g Round
+  setLineJoin g RoundJoin
   moveTo g segment.src.x segment.src.y
   lineTo g segment.dst.x segment.dst.y
   stroke g
