@@ -19,7 +19,7 @@ data State = State
   deriving (Eq, Ord, Show, Generic, ToJSON)
 
 data Broadcast
-  = DrawSegment { segment :: Segment }
+  = Draw { segment :: Segment }
   | UpdateBitmap { bitmap :: Base64Png }
   deriving (Eq, Ord, Show, Generic, FromJSON, ToJSON)
 

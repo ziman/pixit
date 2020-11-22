@@ -33,6 +33,14 @@ onMessage self sock (Api.Update u) = do
 onMessage self sock (Api.Error e) = do
   Utils.alert e.message
 
+onMessage self sock (Api.Broadcast_S2C {broadcast}) =
+  case broadcast of
+    Api.Draw {segment} -> do
+      pure unit  -- TODO
+
+    Api.UpdateBitmap {bitmap} -> do
+      pure unit  -- TODO
+
 getWsUrl :: Effect String
 getWsUrl = do
   l <- Window.location =<< HTML.window
@@ -81,7 +89,12 @@ render self =
         , R.div
           { className: "main"
           , children:
-            [ Canvas.new unit
+            [ Canvas.new
+              { onDraw: \_seg -> do
+                  pure unit
+              , onUpdateBitmap: \bmp -> do
+                  Utils.alert bmp
+              }
             ]
           }
         ]

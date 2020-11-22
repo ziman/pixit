@@ -10,6 +10,9 @@
   , "react-basic-classic"
   , "react-basic-dom"
   , "media-types"
+  , "unsafe-coerce"
+  , "canvas"
+  , "integers"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs" ]
