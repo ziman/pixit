@@ -9,7 +9,6 @@ import Data.Foldable hiding (length)
 import Data.Text (Text)
 import Data.Map.Strict (Map)
 import Data.Bimap (Bimap)
-import qualified Data.List as List
 import qualified Data.Bimap as Bimap
 import qualified Data.Map.Strict as Map
 import qualified Data.Vector as Vec
@@ -46,7 +45,7 @@ data State = State
   { _players :: Map PlayerId Player
   , _nextPlayerId :: PlayerId
   , _connections :: Bimap Connection PlayerId
-  -- , _wordlist :: [Text]
+  -- , _wordlist :: Vector Text
   }
   deriving Show
 
@@ -171,17 +170,12 @@ game = Engine.Game
   , runEffect
   }
 
-shuffle :: StdGen -> [a] -> (StdGen, [a])
-shuffle g xs =
-  let (xs', g') = Vec.shuffle (Vec.fromList xs) g
-    in (g', Vec.toList xs')
-
 mkInitialState :: FilePath -> IO State
 mkInitialState fnLanguage = do
-  wordlist <- Text.words <$> Text.readFile fnLanguage
-  putStrLn $ "loaded " ++ show (List.length wordlist) ++ " words"
+  wordlist <- Vec.fromList . Text.words <$> Text.readFile fnLanguage
+  putStrLn $ "loaded " ++ show (Vec.length wordlist) ++ " words"
   g <- newStdGen
-  let (_stdGen, _wordlistShuffled) = shuffle g $ wordlist
+  let (_wordlistShuffled, _g') = Vec.shuffle wordlist g
   pure $ State
     { _players = Map.empty
     , _connections = Bimap.empty
