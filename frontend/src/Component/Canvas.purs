@@ -7,10 +7,11 @@ import Data.Maybe (Maybe(..))
 import React.Basic (JSX)
 import React.Basic.Classic (Self, createComponent, make)
 import React.Basic.DOM as R
-import React.Basic.Events (merge)
+import React.Basic.Events (merge, EventHandler)
 import React.Basic.DOM.Events (capture, clientX, clientY, target)
 import Unsafe.Coerce (unsafeCoerce)
 import Effect (Effect)
+import Effect.Exception (throw)
 import Graphics.Canvas (CanvasElement, canvasToDataURL, getContext2D, moveTo, lineTo, stroke)
 import Web.HTML.HTMLElement (getBoundingClientRect, fromEventTarget)
 
@@ -28,6 +29,24 @@ type State =
 black :: Api.Colour
 black = {r: 0, g: 0, b: 0}
 
+captureCanvas
+  :: (
+    {x :: Number, y :: Number, canvas :: CanvasElement}
+    -> Effect Unit
+  )
+  -> EventHandler
+captureCanvas work = capture (merge {clientX, clientY, target}) \evt ->
+  case Tuple (Tuple evt.clientX evt.clientY) (fromEventTarget evt.target) of
+    Tuple (Tuple (Just cx) (Just cy)) (Just elm) -> do
+      rect <- getBoundingClientRect elm
+      work
+        { x: cx - rect.left
+        , y: cy - rect.top
+        , canvas: unsafeCoerce evt.target
+        }
+
+    _ -> throw "captureCanvas: impossible"
+
 render :: Self Props State -> JSX
 render self =
   R.div
@@ -36,53 +55,49 @@ render self =
     [ R.canvas
       { width: "800"
       , height: "600"
-      , onMouseDown: capture (merge {clientX,clientY}) \evt ->
-          case Tuple evt.clientX evt.clientY of
-            Tuple (Just cx) (Just cy) ->
-              self.setState _
-                { lineStart = Just (Tuple cx cy)
-                }
-
-            _ -> pure unit
-
-      , onMouseUp: capture target \tgt -> do
+      , onMouseDown: captureCanvas \evt ->
           self.setState _
-            { lineStart = Nothing
+            { lineStart = Just (Tuple evt.x evt.y)
             }
 
-          let canvas = unsafeCoerce tgt :: CanvasElement
-          self.props.onUpdateBitmap =<< canvasToDataURL canvas
+      , onMouseUp: captureCanvas \evt -> do
+          case self.state.lineStart of
+            Nothing -> pure unit
+            Just (Tuple srcX srcY) -> do
+              self.setState _{lineStart = Nothing}
+              self.props.onUpdateBitmap =<< canvasToDataURL evt.canvas
 
-      , onMouseMove: capture (merge {clientX, clientY, target}) \evt -> do
+      , onMouseLeave: captureCanvas \evt -> do
+          case self.state.lineStart of
+            Nothing -> pure unit
+            Just (Tuple srcX srcY) -> do
+              g <- getContext2D evt.canvas
+              moveTo g srcX srcY
+              lineTo g evt.x evt.y
+              stroke g
 
-          case Tuple (Tuple evt.clientX evt.clientY) (fromEventTarget evt.target) of
-            Tuple (Tuple (Just cx) (Just cy)) (Just elm) -> do
-              case self.state.lineStart of
-                Nothing -> pure unit
-                Just (Tuple srcX srcY) -> do
-                  rect <- getBoundingClientRect elm
+              self.setState _{lineStart = Nothing}
+              self.props.onUpdateBitmap =<< canvasToDataURL evt.canvas
 
-                  let canvas = unsafeCoerce evt.target :: CanvasElement
-                      dstX = cx - rect.left
-                      dstY = cy - rect.top
+      , onMouseMove: captureCanvas \evt ->
+          case self.state.lineStart of
+            Nothing -> pure unit
+            Just (Tuple srcX srcY) -> do
+              g <- getContext2D evt.canvas
+              moveTo g srcX srcY
+              lineTo g evt.x evt.y
+              stroke g
 
-                  g <- getContext2D canvas
-                  moveTo g srcX srcY
-                  lineTo g dstX dstY
-                  stroke g
+              self.setState _
+                { lineStart = Just (Tuple evt.x evt.y)
+                }
 
-                  self.setState _
-                    { lineStart = Just (Tuple dstX dstY)
-                    }
-
-                  self.props.onDraw
-                    { src: Tuple (round srcX) (round srcY)
-                    , dst: Tuple (round dstX) (round dstY)
-                    , colour: black
-                    , thickness: 1
-                    }
-
-            _ -> pure unit
+              self.props.onDraw
+                { src: Tuple (round srcX) (round srcY)
+                , dst: Tuple (round evt.y) (round evt.y)
+                , colour: black
+                , thickness: 1
+                }
       }
     , R.div
       { className: "toolbox"
