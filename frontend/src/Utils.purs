@@ -86,12 +86,13 @@ dragHandler mkDragData = handler nativeEvent \evt ->
         DataTransfer.Move
         (DragEvent.dataTransfer dragEvt)
 
-canvasHandler
-  :: (
-    {x :: Number, y :: Number, canvas :: CanvasElement}
-    -> Effect Unit
-  )
-  -> EventHandler
+type CanvasEvent =
+  { x :: Number
+  , y :: Number
+  , canvas :: CanvasElement
+  }
+
+canvasHandler :: (CanvasEvent -> Effect Unit) -> EventHandler
 canvasHandler work = capture (merge {clientX, clientY, target}) \evt ->
   case Tuple (Tuple evt.clientX evt.clientY) (fromEventTarget evt.target) of
     Tuple (Tuple (Just cx) (Just cy)) (Just elm) -> do
