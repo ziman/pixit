@@ -28,7 +28,7 @@ options = Options
     ( long "port"
     <> short 'p'
     <> metavar "PORT"
-    <> value 8083
+    <> value 8093
     <> help "port to listen on"
     )
 

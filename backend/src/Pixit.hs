@@ -46,7 +46,6 @@ data State = State
   , _nextPlayerId :: PlayerId
   , _connections :: Bimap Connection PlayerId
   , _wordlist :: [Text]
-  , _stdGen :: StdGen
   }
   deriving Show
 
@@ -93,14 +92,14 @@ onDeadPlayer = do
   broadcastStateUpdate
 
 sendStateUpdate :: Connection -> Player -> State -> Pixit ()
-sendStateUpdate conn player st =
+sendStateUpdate conn _player st =
   send conn $ Api.Update $ Api.State
     { players =
       [ Api.Player
         { name    = p ^. name
         , score   = p ^. score
         }
-      | (pid, p) <- Map.toList (st ^. players)
+      | (_pid, p) <- Map.toList (st ^. players)
       ]
     }
 
@@ -157,6 +156,11 @@ handle Api.Join{playerName} = do
 
   broadcastStateUpdate
 
+handle Api.Broadcast_C2S{broadcast} = do
+  connections <- Bimap.keys <$> use connections
+  for_ connections $ \connection ->
+    send connection Api.Broadcast_S2C{broadcast}
+
 game :: Engine.Game State Effect () Api.Message_C2S Api.Message_S2C
 game = Engine.Game
   { onMessage = handle
@@ -179,7 +183,6 @@ mkInitialState fnLanguage = do
     , _connections = Bimap.empty
     , _nextPlayerId = PlayerId 1
     , _wordlist = wordlistShuffled
-    , _stdGen = stdGen
     }
 
 runEffect :: Effect -> IO ()
