@@ -1,21 +1,20 @@
 module Component.Canvas (new) where
 
 import Prelude
+import Effect (Effect)
+
 import Data.Int (round)
 import Data.Tuple (Tuple(..))
 import Data.Maybe (Maybe(..))
+
 import React.Basic (JSX)
 import React.Basic.Classic (Self, createComponent, make)
 import React.Basic.DOM as R
-import React.Basic.Events (merge, EventHandler)
-import React.Basic.DOM.Events (capture, clientX, clientY, target)
-import Unsafe.Coerce (unsafeCoerce)
-import Effect (Effect)
-import Effect.Exception (throw)
-import Graphics.Canvas (CanvasElement, canvasToDataURL, getContext2D, moveTo, lineTo, stroke)
-import Web.HTML.HTMLElement (getBoundingClientRect, fromEventTarget)
+
+import Graphics.Canvas (canvasToDataURL, getContext2D, moveTo, lineTo, stroke)
 
 import Api as Api
+import Utils (canvasHandler)
 
 type Props =
   { onDraw :: Api.Segment -> Effect Unit
@@ -29,24 +28,6 @@ type State =
 black :: Api.Colour
 black = {r: 0, g: 0, b: 0}
 
-captureCanvas
-  :: (
-    {x :: Number, y :: Number, canvas :: CanvasElement}
-    -> Effect Unit
-  )
-  -> EventHandler
-captureCanvas work = capture (merge {clientX, clientY, target}) \evt ->
-  case Tuple (Tuple evt.clientX evt.clientY) (fromEventTarget evt.target) of
-    Tuple (Tuple (Just cx) (Just cy)) (Just elm) -> do
-      rect <- getBoundingClientRect elm
-      work
-        { x: cx - rect.left
-        , y: cy - rect.top
-        , canvas: unsafeCoerce evt.target
-        }
-
-    _ -> throw "captureCanvas: impossible"
-
 render :: Self Props State -> JSX
 render self =
   R.div
@@ -55,19 +36,19 @@ render self =
     [ R.canvas
       { width: "800"
       , height: "600"
-      , onMouseDown: captureCanvas \evt ->
+      , onMouseDown: canvasHandler \evt ->
           self.setState _
             { lineStart = Just (Tuple evt.x evt.y)
             }
 
-      , onMouseUp: captureCanvas \evt -> do
+      , onMouseUp: canvasHandler \evt -> do
           case self.state.lineStart of
             Nothing -> pure unit
             Just (Tuple srcX srcY) -> do
               self.setState _{lineStart = Nothing}
               self.props.onUpdateBitmap =<< canvasToDataURL evt.canvas
 
-      , onMouseLeave: captureCanvas \evt -> do
+      , onMouseLeave: canvasHandler \evt -> do
           case self.state.lineStart of
             Nothing -> pure unit
             Just (Tuple srcX srcY) -> do
@@ -79,7 +60,7 @@ render self =
               self.setState _{lineStart = Nothing}
               self.props.onUpdateBitmap =<< canvasToDataURL evt.canvas
 
-      , onMouseMove: captureCanvas \evt ->
+      , onMouseMove: canvasHandler \evt ->
           case self.state.lineStart of
             Nothing -> pure unit
             Just (Tuple srcX srcY) -> do
