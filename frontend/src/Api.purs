@@ -2,7 +2,6 @@ module Api where
 
 import Prelude
 import Data.Either (Either(..))
-import Data.Tuple (Tuple)
 import Foreign.Object as Object
 import Data.Argonaut.Core (caseJsonObject, fromString, fromObject, Json)
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
@@ -12,7 +11,10 @@ import Data.Argonaut.Decode.Combinators ((.:))
 
 type Colour = String
 
-type Point = Tuple Int Int
+type Point =
+  { x :: Number
+  , y :: Number
+  }
 
 type Base64Png = String
 
@@ -20,7 +22,7 @@ type Segment =
   { src :: Point
   , dst :: Point
   , colour :: Colour
-  , thickness :: Int
+  , thickness :: Number
   }
 
 type Player =

@@ -35,11 +35,8 @@ onMessage self sock (Api.Error e) = do
 
 onMessage self sock (Api.Broadcast_S2C {broadcast}) =
   case broadcast of
-    Api.Draw {segment} -> do
-      pure unit  -- TODO
-
-    Api.UpdateBitmap {bitmap} -> do
-      pure unit  -- TODO
+    Api.Draw {segment} -> Canvas.onDraw segment
+    Api.UpdateBitmap {bitmap} -> Canvas.onUpdateBitmap bitmap
 
 getWsUrl :: Effect String
 getWsUrl = do

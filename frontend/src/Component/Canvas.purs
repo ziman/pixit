@@ -1,10 +1,9 @@
-module Component.Canvas (new) where
+module Component.Canvas (new, onDraw, onUpdateBitmap) where
 
 import Prelude
 import Effect (Effect)
+import Effect.Exception (throw)
 
-import Data.Int (round, toNumber)
-import Data.Tuple (Tuple(..))
 import Data.Maybe (Maybe(..))
 
 import React.Basic (JSX)
@@ -14,7 +13,8 @@ import React.Basic.DOM as R
 
 import Graphics.Canvas
   ( canvasToDataURL, getContext2D, moveTo, lineTo, stroke
-  , setLineWidth, setStrokeStyle
+  , setLineWidth, setStrokeStyle, getCanvasElementById
+  , CanvasElement
   )
 
 import Api as Api
@@ -26,31 +26,46 @@ type Props =
   }
 
 type State =
-  { lineStart :: Maybe (Tuple Number Number)
-  , thickness :: Int
+  { lineStart :: Maybe Api.Point
+  , thickness :: Number
   , colour :: Api.Colour
   }
 
-drawLine :: Self Props State -> Tuple Number Number -> CanvasEvent -> Effect Unit
-drawLine self (Tuple srcX srcY) evt = do
-  g <- getContext2D evt.canvas
-  setStrokeStyle g self.state.colour
-  setLineWidth g (toNumber self.state.thickness)
-  moveTo g srcX srcY
-  lineTo g evt.x evt.y
+onDraw :: Api.Segment -> Effect Unit
+onDraw segment =
+  getCanvasElementById "canvas" >>= case _ of
+    Nothing -> throw "could not find canvas"
+    Just canvas -> drawSegment canvas segment
+
+onUpdateBitmap :: Api.Base64Png -> Effect Unit
+onUpdateBitmap _bmp = pure unit
+
+drawSegment :: CanvasElement -> Api.Segment -> Effect Unit
+drawSegment canvas segment = do
+  g <- getContext2D canvas
+  setStrokeStyle g segment.colour
+  setLineWidth g segment.thickness
+  moveTo g segment.src.x segment.src.y
+  lineTo g segment.dst.x segment.dst.y
   stroke g
 
-  self.props.onDraw
-    { src: Tuple (round srcX) (round srcY)
-    , dst: Tuple (round evt.y) (round evt.y)
-    , colour: self.state.colour
-    , thickness: self.state.thickness
-    }
+drawSegmentWrapper :: Self Props State -> Api.Point -> CanvasEvent -> Effect Unit
+drawSegmentWrapper self src evt = do
+    drawSegment evt.canvas segment
+    self.props.onDraw segment
+  where
+    segment :: Api.Segment
+    segment =
+      { src
+      , dst: {x: evt.x, y: evt.y}
+      , colour: self.state.colour
+      , thickness: self.state.thickness
+      }
 
 onDown :: Self Props State -> EventHandler
 onDown self = canvasHandler \evt ->
   self.setState _
-    { lineStart = Just (Tuple evt.x evt.y)
+    { lineStart = Just {x: evt.x, y: evt.y}
     }
 
 onUp :: Self Props State -> EventHandler
@@ -66,7 +81,7 @@ onLeave self = canvasHandler \evt ->
   case self.state.lineStart of
     Nothing -> pure unit
     Just src -> do
-      drawLine self src evt
+      drawSegmentWrapper self src evt
 
       self.setState _{lineStart = Nothing}
       self.props.onUpdateBitmap =<< canvasToDataURL evt.canvas
@@ -76,10 +91,10 @@ onMove self = canvasHandler \evt ->
   case self.state.lineStart of
     Nothing -> pure unit
     Just src -> do
-      drawLine self src evt
+      drawSegmentWrapper self src evt
 
       self.setState _
-        { lineStart = Just (Tuple evt.x evt.y)
+        { lineStart = Just {x: evt.x, y: evt.y}
         }
 
 
@@ -95,6 +110,7 @@ render self =
       , onMouseUp: onUp self
       , onMouseLeave: onLeave self
       , onMouseMove: onMove self
+      , id: "canvas"
       }
     , R.div
       { className: "toolbox"
@@ -109,7 +125,7 @@ new :: Props -> JSX
 new = make (createComponent "Placeholder")
   { initialState:
     { lineStart: Nothing
-    , thickness: 3
+    , thickness: 3.0
     , colour: "#000000"
     }
   , render

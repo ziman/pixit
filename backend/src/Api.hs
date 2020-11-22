@@ -35,11 +35,17 @@ instance HasError Message_S2C where
 newtype Colour = Colour Text
   deriving newtype (Eq, Ord, Show, FromJSON, ToJSON)
 
+data Point = Point
+  { x :: Double
+  , y :: Double
+  }
+  deriving (Eq, Ord, Show, Generic, FromJSON, ToJSON)
+
 data Segment = Segment
-  { src :: (Int, Int)
-  , dst :: (Int, Int)
+  { src :: Point
+  , dst :: Point
   , colour :: Colour
-  , thickness :: Int
+  , thickness :: Double
   }
   deriving (Eq, Ord, Show, Generic, FromJSON, ToJSON)
 
