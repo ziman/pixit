@@ -8,13 +8,14 @@ import Data.Maybe (Maybe(..))
 
 import React.Basic (JSX)
 import React.Basic.Events (EventHandler)
+import React.Basic.DOM.Events (capture_)
 import React.Basic.Classic (Self, createComponent, make)
 import React.Basic.DOM as R
 
 import Graphics.Canvas
   ( canvasToDataURL, getContext2D, moveTo, lineTo, stroke
   , setLineWidth, setStrokeStyle, getCanvasElementById
-  , CanvasElement, setLineCap, setLineJoin
+  , CanvasElement, setLineCap, setLineJoin, beginPath
   , LineCap(..), LineJoin(..)
   , tryLoadImage, drawImage
   )
@@ -74,7 +75,10 @@ drawSegmentWrapper self src evt = do
       }
 
 onDown :: Self Props State -> EventHandler
-onDown self = canvasHandler \evt ->
+onDown self = canvasHandler \evt -> do
+  g <- getContext2D evt.canvas
+  beginPath g
+
   self.setState _
     { lineStart = Just {x: evt.x, y: evt.y}
     }
@@ -86,6 +90,12 @@ onUp self = canvasHandler \evt ->
     Just _ -> do
       self.setState _{lineStart = Nothing}
       self.props.onUpdateBitmap =<< canvasToDataURL evt.canvas
+      -- TODO:
+      -- make a background timer job
+      -- that checks self.state to see if there's been an update
+      -- if so, send bitmap, clear dirty flag
+      --
+      -- doing this synchronously warps the ends of curves
 
 onLeave :: Self Props State -> EventHandler
 onLeave self = canvasHandler \evt ->
@@ -108,6 +118,24 @@ onMove self = canvasHandler \evt ->
         { lineStart = Just {x: evt.x, y: evt.y}
         }
 
+tool :: Self Props State -> R.CSS -> (State -> Boolean) -> (State -> State) -> JSX
+tool self css isActive onClick =
+  R.li
+  { className:
+      if isActive self.state
+        then "active"
+        else "inactive"
+  , onClick: capture_ (self.setState onClick)
+  , style: css
+  }
+
+swatch :: Self Props State -> Api.Colour -> JSX
+swatch self col =
+  tool
+    self
+    (R.css {"background-color": col})
+    (\st -> st.colour == col)
+    _{colour = col}
 
 render :: Self Props State -> JSX
 render self =
@@ -123,10 +151,11 @@ render self =
       , onMouseMove: onMove self
       , id: "canvas"
       }
-    , R.div
+    , R.ul
       { className: "toolbox"
       , children:
-        [ R.text "tool1"
+        [ swatch self "#000000"
+        , swatch self "#FF0000"
         ]
       }
     ]

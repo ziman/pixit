@@ -47,6 +47,28 @@ canvas {
   border: 1px solid #ccc;
 }
 
+ul.toolbox {
+  list-style-type: none;
+  padding: 0px;
+  margin: 5px 0px 5px 0px;
+}
+
+ul.toolbox li {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  margin-right: 5px;
+  border-radius: 5px;
+}
+
+ul.toolbox li.active {
+  border: 3px solid black;
+}
+
+ul.toolbox li.inactive {
+  border: 3px solid white;
+}
+
 /*
  * vim: ts=2 sts=2 sw=2 et
  */

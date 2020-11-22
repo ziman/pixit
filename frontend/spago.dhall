@@ -2,6 +2,7 @@
 , dependencies =
   [ "console"
   , "effect"
+  , "aff"
   , "psci-support"
   , "argonaut"
   , "argonaut-codecs"
@@ -13,6 +14,8 @@
   , "unsafe-coerce"
   , "canvas"
   , "integers"
+  , "css"
+  , "colors"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs" ]
