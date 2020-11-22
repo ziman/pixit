@@ -10,11 +10,7 @@ import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Argonaut.Decode.Error (JsonDecodeError(..))
 import Data.Argonaut.Decode.Combinators ((.:))
 
-type Colour =
-  { r :: Int
-  , g :: Int
-  , b :: Int
-  }
+type Colour = String
 
 type Point = Tuple Int Int
 

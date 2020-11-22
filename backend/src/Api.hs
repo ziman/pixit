@@ -2,7 +2,6 @@ module Api where
 
 import GHC.Generics
 import Data.Text (Text)
-import Data.Word (Word8)
 import Data.Aeson (ToJSON, FromJSON)
 
 import Game.WSGame.Engine (HasError(..))
@@ -32,12 +31,9 @@ data Message_S2C
 instance HasError Message_S2C where
   s2cError = Error
 
-data Colour = Colour
-  { r :: Word8
-  , g :: Word8
-  , b :: Word8
-  }
-  deriving (Eq, Ord, Show, Generic, FromJSON, ToJSON)
+-- CSS colour
+newtype Colour = Colour Text
+  deriving newtype (Eq, Ord, Show, FromJSON, ToJSON)
 
 data Segment = Segment
   { src :: (Int, Int)

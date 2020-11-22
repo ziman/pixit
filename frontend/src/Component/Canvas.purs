@@ -3,7 +3,7 @@ module Component.Canvas (new) where
 import Prelude
 import Effect (Effect)
 
-import Data.Int (round)
+import Data.Int (round, toNumber)
 import Data.Tuple (Tuple(..))
 import Data.Maybe (Maybe(..))
 
@@ -12,7 +12,10 @@ import React.Basic.Events (EventHandler)
 import React.Basic.Classic (Self, createComponent, make)
 import React.Basic.DOM as R
 
-import Graphics.Canvas (canvasToDataURL, getContext2D, moveTo, lineTo, stroke)
+import Graphics.Canvas
+  ( canvasToDataURL, getContext2D, moveTo, lineTo, stroke
+  , setLineWidth, setStrokeStyle
+  )
 
 import Api as Api
 import Utils (canvasHandler, CanvasEvent)
@@ -24,14 +27,15 @@ type Props =
 
 type State =
   { lineStart :: Maybe (Tuple Number Number)
+  , thickness :: Int
+  , colour :: Api.Colour
   }
-
-black :: Api.Colour
-black = {r: 0, g: 0, b: 0}
 
 drawLine :: Self Props State -> Tuple Number Number -> CanvasEvent -> Effect Unit
 drawLine self (Tuple srcX srcY) evt = do
   g <- getContext2D evt.canvas
+  setStrokeStyle g self.state.colour
+  setLineWidth g (toNumber self.state.thickness)
   moveTo g srcX srcY
   lineTo g evt.x evt.y
   stroke g
@@ -39,8 +43,8 @@ drawLine self (Tuple srcX srcY) evt = do
   self.props.onDraw
     { src: Tuple (round srcX) (round srcY)
     , dst: Tuple (round evt.y) (round evt.y)
-    , colour: black
-    , thickness: 1
+    , colour: self.state.colour
+    , thickness: self.state.thickness
     }
 
 onDown :: Self Props State -> EventHandler
@@ -105,6 +109,8 @@ new :: Props -> JSX
 new = make (createComponent "Placeholder")
   { initialState:
     { lineStart: Nothing
+    , thickness: 3
+    , colour: "#000000"
     }
   , render
   }
