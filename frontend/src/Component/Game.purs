@@ -93,7 +93,7 @@ render self =
               { onDraw: \_seg -> do
                   pure unit
               , onUpdateBitmap: \bmp -> do
-                  Utils.alert bmp
+                  pure unit
               }
             ]
           }
