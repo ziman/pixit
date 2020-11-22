@@ -18,7 +18,7 @@ import Api as Api
 import Utils as Utils
 import Component.Login as Login
 import Component.PlayerList as PlayerList
-import Component.Placeholder as Placeholder
+import Component.Canvas as Canvas
 
 type WebSocket = WS.Capabilities Effect Api.Message_C2S
 type Props = Unit
@@ -81,9 +81,7 @@ render self =
         , R.div
           { className: "main"
           , children:
-            [ Placeholder.new
-              { title: "board"
-              }
+            [ Canvas.new unit
             ]
           }
         ]
