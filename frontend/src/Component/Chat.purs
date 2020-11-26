@@ -1,16 +1,24 @@
 module Component.Chat (new) where
 
 import Prelude
+import Effect (Effect)
 import Data.Maybe (Maybe(..))
 import React.Basic (JSX)
 import React.Basic.Classic (Self, createComponent, make)
 import React.Basic.DOM as R
+import React.Basic.Events (handler, merge)
+import React.Basic.DOM.Events as RE
+import Web.HTML.HTMLInputElement as HtmlInput
 
 import Api as Api
 
-type Props = Unit
+type Props =
+  { onSend :: String -> Effect Unit
+  }
+
 type State =
   { messages :: Array Api.ChatMessage
+  , editLine :: String
   }
 
 renderMessage :: Api.ChatMessage -> JSX
@@ -58,6 +66,21 @@ render self =
       }
     , R.input
       { "type": "text"
+      , onKeyPress: handler (merge {mbKey: RE.key, target: RE.target}) \evt ->
+          if evt.mbKey == Just "Enter"
+            then do
+              self.props.onSend self.state.editLine
+              self.setState _{editLine = ""}
+
+              case HtmlInput.fromEventTarget evt.target of
+                Nothing -> pure unit
+                Just input -> HtmlInput.setValue "" input
+
+            else pure unit
+      , onChange: handler RE.targetValue \mbVal ->
+          case mbVal of
+            Nothing -> pure unit
+            Just val -> self.setState _{editLine = val}
       }
     ]
   }
@@ -83,6 +106,7 @@ new = make (createComponent "Chat")
         , text: Just "boo"
         }
       ]
+    , editLine: ""
     }
   , render
   }

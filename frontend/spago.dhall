@@ -16,6 +16,7 @@
   , "integers"
   , "css"
   , "colors"
+  , "web-html"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs" ]

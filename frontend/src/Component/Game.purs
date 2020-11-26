@@ -102,7 +102,10 @@ render self =
         , R.div
           { className: "right-column"
           , children:
-            [ Chat.new unit
+            [ Chat.new
+              { onSend: \msg ->
+                  Utils.log ("send: " <> msg)
+              }
             ]
           }
         ]
