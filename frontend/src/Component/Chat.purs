@@ -48,7 +48,7 @@ renderMessage (Api.CorrectGuess msg) =
     , R.span
       { className: "text"
       , children:
-        [ R.text case msg.text of
+        [ R.text case msg.mbText of
             Nothing -> "is correct!"
             Just text -> text
         ]

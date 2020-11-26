@@ -3,17 +3,32 @@ module Api where
 import GHC.Generics
 import Data.Text (Text)
 import Data.Aeson (ToJSON, FromJSON)
+import Data.Sequence (Seq)
 
 import Game.WSGame.Engine (HasError(..))
 
 data Player = Player
   { name :: Text
   , score :: Int
+  , isDead :: Bool
+  , isDrawing :: Bool
   }
+  deriving (Eq, Ord, Show, Generic, ToJSON)
+
+data ChatMessage
+  = Chat
+    { name :: Text
+    , text :: Text
+    }
+  | CorrectGuess
+    { name :: Text
+    , mbText :: Text
+    }
   deriving (Eq, Ord, Show, Generic, ToJSON)
 
 data State = State
   { players :: [Player]
+  , chatMessages :: Seq ChatMessage
   }
   deriving (Eq, Ord, Show, Generic, ToJSON)
 
@@ -55,4 +70,5 @@ newtype Base64Png = Base64Png Text
 data Message_C2S
   = Join { playerName :: Text }
   | Broadcast_C2S { broadcast :: Broadcast }
+  | SendMessage { text :: Text }
   deriving (Eq, Ord, Show, Generic, FromJSON)

@@ -9,7 +9,9 @@ import Data.Foldable hiding (length)
 import Data.Text (Text)
 import Data.Map.Strict (Map)
 import Data.Bimap (Bimap)
+import Data.Sequence (Seq)
 import qualified Data.Bimap as Bimap
+import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
 import qualified Data.Vector as Vec
 import qualified Data.Text as Text
@@ -45,6 +47,7 @@ data State = State
   { _players :: Map PlayerId Player
   , _nextPlayerId :: PlayerId
   , _connections :: Bimap Connection PlayerId
+  , _chatMessages :: Seq Api.ChatMessage
   -- , _wordlist :: Vector Text
   }
   deriving Show
@@ -98,9 +101,12 @@ sendStateUpdate conn _player st =
       [ Api.Player
         { name    = p ^. name
         , score   = p ^. score
+        , isDead  = False  -- TODO
+        , isDrawing = False  -- TODO
         }
       | (_pid, p) <- Map.toList (st ^. players)
       ]
+    , chatMessages = st ^. chatMessages
     }
 
 broadcastStateUpdate :: Pixit ()
@@ -163,6 +169,14 @@ handle Api.Broadcast_C2S{broadcast} = do
     when (pid /= selfPid) $
       send connection Api.Broadcast_S2C{broadcast}
 
+handle Api.SendMessage{text} = do
+  Self _selfPid self <- getSelf
+  -- TODO: check guess
+  selfName <- use $ self . name
+  modify $
+    chatMessages %~ (Seq.|> Api.Chat{name = selfName, text})
+  broadcastStateUpdate
+
 game :: Engine.Game State Effect () Api.Message_C2S Api.Message_S2C
 game = Engine.Game
   { onMessage = handle
@@ -180,6 +194,7 @@ mkInitialState fnLanguage = do
     { _players = Map.empty
     , _connections = Bimap.empty
     , _nextPlayerId = PlayerId 1
+    , _chatMessages = Seq.empty
     -- , _wordlist = wordlistShuffled
     }
 

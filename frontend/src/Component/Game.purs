@@ -104,8 +104,8 @@ render self =
           , children:
             [ Chat.new
               { messages: state.chatMessages
-              , onSend: \msg ->
-                  Utils.log ("send: " <> msg)
+              , onSend: \text ->
+                  sock.send $ Api.SendMessage {text}
               }
             ]
           }

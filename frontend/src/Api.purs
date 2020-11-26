@@ -45,7 +45,7 @@ data ChatMessage
     }
   | CorrectGuess
     { name :: String
-    , text :: Maybe String
+    , mbText :: Maybe String
     }
 
 instance chatMessage_DecodeJson :: DecodeJson ChatMessage where
