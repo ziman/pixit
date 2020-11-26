@@ -103,7 +103,8 @@ render self =
           { className: "right-column"
           , children:
             [ Chat.new
-              { onSend: \msg ->
+              { messages: state.chatMessages
+              , onSend: \msg ->
                   Utils.log ("send: " <> msg)
               }
             ]

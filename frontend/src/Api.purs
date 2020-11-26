@@ -29,10 +29,13 @@ type Segment =
 type Player =
   { name :: String
   , score :: Int
+  , isDrawing :: Boolean
+  , isDead :: Boolean
   }
 
 type State =
   { players :: Array Player
+  , chatMessages :: Array ChatMessage
   }
 
 data ChatMessage
@@ -92,11 +95,13 @@ instance msg_s2c_DecodeJson :: DecodeJson Message_S2C where
 data Message_C2S
   = Join { playerName :: String }
   | Broadcast_C2S { broadcast :: Broadcast }
+  | SendMessage { text :: String }
 
 instance msg_c2s_EncodeJson :: EncodeJson Message_C2S where
   encodeJson = case _ of
     Join obj -> "Join" // obj
     Broadcast_C2S obj -> "Broadcast_C2S" // obj
+    SendMessage obj -> "SendMessage" // obj
 
 infix 3 addTag as //
 addTag :: forall a. EncodeJson a => String -> a -> Json

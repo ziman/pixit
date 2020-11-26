@@ -13,12 +13,12 @@ import Web.HTML.HTMLInputElement as HtmlInput
 import Api as Api
 
 type Props =
-  { onSend :: String -> Effect Unit
+  { messages :: Array Api.ChatMessage
+  , onSend :: String -> Effect Unit
   }
 
 type State =
-  { messages :: Array Api.ChatMessage
-  , editLine :: String
+  { editLine :: String
   }
 
 renderMessage :: Api.ChatMessage -> JSX
@@ -62,7 +62,7 @@ render self =
   { className: "chat"
   , children:
     [ R.ul
-      { children: map renderMessage self.state.messages
+      { children: map renderMessage self.props.messages
       }
     , R.input
       { "type": "text"
@@ -88,25 +88,7 @@ render self =
 new :: Props -> JSX
 new = make (createComponent "Chat")
   { initialState:
-    { messages:
-      [ Api.Chat
-        { name: "Pixit"
-        , text: "Welcome to Pixit!"
-        }
-      , Api.CorrectGuess
-        { name: "Joe"
-        , text: Nothing
-        }
-      , Api.Chat
-        { name: "Pixit"
-        , text: "Welcome to Pixit!"
-        }
-      , Api.CorrectGuess
-        { name: "Joe"
-        , text: Just "boo"
-        }
-      ]
-    , editLine: ""
+    { editLine: ""
     }
   , render
   }
