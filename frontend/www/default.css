@@ -9,13 +9,51 @@ body {
 .game {
 }
 
-.main {
-  margin-left: 160px;
+div.main {
+  display: inline-block;
+  vertical-align: top;
+  margin-left: 10px;
+  margin-right: 10px;
 }
 
 div.left-column {
   width: 150px;
-  float: left;
+  display: inline-block;
+  vertical-align: top;
+}
+
+div.right-column {
+  width: 200px;
+  display: inline-block;
+  vertical-align: top;
+}
+
+div.chat ul {
+  list-style-type: none;
+  padding-left: 0px;
+}
+
+div.chat span.name {
+  font-weight: bold;
+}
+
+div.chat span.name:after {
+  content: ": "
+}
+
+div.chat span.text {
+}
+
+div.chat li.chat {
+  /* nothing special */
+}
+
+div.chat li.correct-guess {
+  background: #00FF00;
+}
+
+div.chat input {
+  width: 100%;
 }
 
 table.player-list {

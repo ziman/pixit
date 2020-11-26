@@ -1,6 +1,7 @@
 module Api where
 
 import Prelude
+import Data.Maybe (Maybe)
 import Data.Either (Either(..))
 import Foreign.Object as Object
 import Data.Argonaut.Core (caseJsonObject, fromString, fromObject, Json)
@@ -33,6 +34,29 @@ type Player =
 type State =
   { players :: Array Player
   }
+
+data ChatMessage
+  = Chat
+    { name :: String
+    , text :: String
+    }
+  | CorrectGuess
+    { name :: String
+    , text :: Maybe String
+    }
+
+instance chatMessage_DecodeJson :: DecodeJson ChatMessage where
+  decodeJson json = do
+    obj <- decodeJson json
+    obj .: "tag" >>= case _ of
+      "Chat" -> Chat <$> decodeJson json
+      "CorrectGuess" -> CorrectGuess <$> decodeJson json
+      tag -> Left $ AtKey "tag" $ UnexpectedValue (fromString tag)
+
+instance chatMessage_EncodeJson :: EncodeJson ChatMessage where
+  encodeJson = case _ of
+    Chat obj -> "Chat" // obj
+    CorrectGuess obj -> "CorrectGuess" // obj
 
 data Broadcast
   = Draw { segment :: Segment }

@@ -19,6 +19,7 @@ import Utils as Utils
 import Component.Login as Login
 import Component.PlayerList as PlayerList
 import Component.Canvas as Canvas
+import Component.Chat as Chat
 
 type WebSocket = WS.Capabilities Effect Api.Message_C2S
 type Props = Unit
@@ -96,6 +97,12 @@ render self =
                     { broadcast: Api.UpdateBitmap {bitmap}
                     }
               }
+            ]
+          }
+        , R.div
+          { className: "right-column"
+          , children:
+            [ Chat.new unit
             ]
           }
         ]

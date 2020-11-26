@@ -273,7 +273,7 @@ render self =
   }
 
 new :: Props -> JSX
-new = make (createComponent "Placeholder")
+new = make (createComponent "Canvas")
   { initialState:
     { lineStart: Nothing
     , thickness: 5.0
