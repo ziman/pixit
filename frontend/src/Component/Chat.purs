@@ -61,10 +61,7 @@ render self =
   R.div
   { className: "chat"
   , children:
-    [ R.ul
-      { children: map renderMessage self.props.messages
-      }
-    , R.input
+    [ R.input
       { "type": "text"
       , onKeyPress: handler (merge {mbKey: RE.key, target: RE.target}) \evt ->
           if evt.mbKey == Just "Enter"
@@ -81,6 +78,9 @@ render self =
           case mbVal of
             Nothing -> pure unit
             Just val -> self.setState _{editLine = val}
+      }
+    , R.ul
+      { children: map renderMessage self.props.messages
       }
     ]
   }
