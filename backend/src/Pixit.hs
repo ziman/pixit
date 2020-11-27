@@ -43,10 +43,20 @@ instance Show Player where
 newtype PlayerId = PlayerId {unPlayerId :: Int}
   deriving newtype (Eq, Ord, Show)
 
+data Turns = Turns
+  { _past :: [PlayerId]    -- reversed past
+  , _present :: PlayerId
+  , _future :: [PlayerId]  -- present:future
+  }
+  deriving Show
+
+makeLenses ''Turns
+
 data State = State
   { _players :: Map PlayerId Player
-  , _nextPlayerId :: PlayerId
+  , _turns :: Maybe Turns
   , _connections :: Bimap Connection PlayerId
+  , _nextPlayerId :: PlayerId
   , _chatMessages :: Seq Api.ChatMessage
   -- , _wordlist :: Vector Text
   }
@@ -69,6 +79,22 @@ send conn msg = perform $ Send conn msg
 
 close :: Connection -> Pixit ()
 close conn = perform $ Close conn
+
+advance :: Turns -> Turns
+advance Turns{_past, _present, _future=[]} =
+  let x:xs = reverse (_present : _past)
+    in Turns
+      { _past = []
+      , _present = x
+      , _future = xs
+      }
+
+advance Turns{_past, _present, _future=x:xs} =
+  Turns
+    { _past = _present : _past
+    , _present = x
+    , _future = xs
+    }
 
 data Self = Self
   { _pid :: PlayerId
@@ -195,6 +221,7 @@ mkInitialState fnLanguage = do
     { _players = Map.empty
     , _connections = Bimap.empty
     , _nextPlayerId = PlayerId 1
+    , _turns = Nothing
     , _chatMessages = Seq.empty
     -- , _wordlist = wordlistShuffled
     }
