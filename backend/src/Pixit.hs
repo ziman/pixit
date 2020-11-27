@@ -174,7 +174,8 @@ handle Api.SendMessage{text} = do
   -- TODO: check guess
   selfName <- use $ self . name
   modify $
-    chatMessages %~ (Api.Chat{name = selfName, text} Seq.<|)
+    chatMessages %~
+      (Seq.take 128 . (Api.Chat{name = selfName, text} Seq.<|))
   broadcastStateUpdate
 
 game :: Engine.Game State Effect () Api.Message_C2S Api.Message_S2C
