@@ -27,7 +27,9 @@ import qualified Game.WSGame.Engine as Engine
 
 import Lens.Micro.Platform
 
+import Players hiding (getSelf)
 import qualified Api
+import qualified Players
 
 data Player = Player
   { _name :: Text
@@ -40,23 +42,8 @@ instance Show Player where
   show Player{_name, _score}
     = show (_name, _score)
 
-newtype PlayerId = PlayerId {unPlayerId :: Int}
-  deriving newtype (Eq, Ord, Show)
-
-data Turns = Turns
-  { _past :: [PlayerId]    -- reversed past
-  , _present :: PlayerId
-  , _future :: [PlayerId]  -- present:future
-  }
-  deriving Show
-
-makeLenses ''Turns
-
 data State = State
-  { _players :: Map PlayerId Player
-  , _turns :: Maybe Turns
-  , _connections :: Bimap Connection PlayerId
-  , _nextPlayerId :: PlayerId
+  { _players :: Players Player
   , _chatMessages :: Seq Api.ChatMessage
   -- , _wordlist :: Vector Text
   }
@@ -80,44 +67,12 @@ send conn msg = perform $ Send conn msg
 close :: Connection -> Pixit ()
 close conn = perform $ Close conn
 
-advance :: Turns -> Turns
-advance Turns{_past, _present, _future=[]} =
-  let x:xs = reverse (_present : _past)
-    in Turns
-      { _past = []
-      , _present = x
-      , _future = xs
-      }
-
-advance Turns{_past, _present, _future=x:xs} =
-  Turns
-    { _past = _present : _past
-    , _present = x
-    , _future = xs
-    }
-
-data Self = Self
-  { _pid :: PlayerId
-  , _self :: Traversal' State Player
-  }
-
-getSelf :: Pixit Self
-getSelf = do
-  state <- getState
-  connection <- getConnection
-  case Bimap.lookup connection (state ^. connections) of
-    Nothing -> throwHard $ "connection not in game state: " ++ show connection
-    Just pid -> do
-      -- check the PID because `ix` won't do that
-      when (not $ has (players . ix pid) state) $
-        throwHard $ "no player for PID " ++ show pid
-
-      return $ Self pid (players . ix pid)
+getSelf :: Pixit (Self State Player)
+getSelf = Players.getSelf players
 
 onDeadPlayer :: Pixit ()
 onDeadPlayer = do
-  connection <- getConnection
-  connections %= Bimap.delete connection
+  Players.markSelfAsDead players
   broadcastStateUpdate
 
 sendStateUpdate :: Connection -> Player -> State -> Pixit ()
@@ -171,6 +126,7 @@ handle Api.Join{playerName} = do
 
           -- resurrect the player
           connections %= Bimap.insert thisConnection pid
+          turns %= append pid
 
     -- brand new player
     [] -> do
@@ -185,6 +141,7 @@ handle Api.Join{playerName} = do
           )
         & (connections %~ Bimap.insert thisConnection (st ^. nextPlayerId))
         & (nextPlayerId %~ (PlayerId . (+1) . unPlayerId))
+        & (turns %~ append pid)
 
   broadcastStateUpdate
 
@@ -218,10 +175,7 @@ mkInitialState fnLanguage = do
   g <- newStdGen
   let (_wordlistShuffled, _g') = Vec.shuffle wordlist g
   pure $ State
-    { _players = Map.empty
-    , _connections = Bimap.empty
-    , _nextPlayerId = PlayerId 1
-    , _turns = Nothing
+    { _players = Players.empty
     , _chatMessages = Seq.empty
     -- , _wordlist = wordlistShuffled
     }

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e66517eaece82579d9ba5e6e1e40696ec01750b5c1f2f8e9d5d921fff03cceb3
+-- hash: c7c16076e94e3733d8c3efe60cdde353340be2a30e7cb302307a4e318a0940ed
 
 name:           pixit
 version:        0.1.0.0
@@ -26,6 +26,7 @@ executable backend
   other-modules:
       Api
       Pixit
+      Players
       Paths_pixit
   hs-source-dirs:
       src
