@@ -4,15 +4,10 @@ module Pixit (game, mkInitialState) where
 import Prelude hiding (log, Word, length)
 import System.Random
 
-import Data.Function
 import Data.Foldable hiding (length)
 import Data.Text (Text)
-import Data.Map.Strict (Map)
-import Data.Bimap (Bimap)
 import Data.Sequence (Seq)
-import qualified Data.Bimap as Bimap
 import qualified Data.Sequence as Seq
-import qualified Data.Map.Strict as Map
 import qualified Data.Vector as Vec
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
@@ -31,19 +26,19 @@ import Players hiding (getSelf)
 import qualified Api
 import qualified Players
 
-data Player = Player
+data Profile = Profile
   { _name :: Text
   , _score :: Int
   }
 
-makeLenses ''Player
+makeLenses ''Profile
 
-instance Show Player where
-  show Player{_name, _score}
+instance Show Profile where
+  show Profile{_name, _score}
     = show (_name, _score)
 
 data State = State
-  { _players :: Players Player
+  { _players :: Players Profile
   , _chatMessages :: Seq Api.ChatMessage
   -- , _wordlist :: Vector Text
   }
@@ -67,25 +62,26 @@ send conn msg = perform $ Send conn msg
 close :: Connection -> Pixit ()
 close conn = perform $ Close conn
 
-getSelf :: Pixit (Self State Player)
+getSelf :: Pixit (Self State Profile)
 getSelf = Players.getSelf players
 
 onDeadPlayer :: Pixit ()
 onDeadPlayer = do
-  Players.markSelfAsDead players
+  Self pid _ <- getSelf
+  players %= suspend pid
   broadcastStateUpdate
 
-sendStateUpdate :: Connection -> Player -> State -> Pixit ()
+sendStateUpdate :: Connection -> Profile -> State -> Pixit ()
 sendStateUpdate conn _player st =
   send conn $ Api.Update $ Api.State
     { players =
       [ Api.Player
         { name    = p ^. name
         , score   = p ^. score
-        , isDead  = False  -- TODO
         , isDrawing = False  -- TODO
+        , isSuspended = False  -- TODO
         }
-      | (_pid, p) <- Map.toList (st ^. players)
+      | (_pid, p) <- st ^.. players . pidsProfiles
       ]
     , chatMessages = st ^. chatMessages
     }
@@ -93,8 +89,8 @@ sendStateUpdate conn _player st =
 broadcastStateUpdate :: Pixit ()
 broadcastStateUpdate = do
   st <- getState
-  for_ (Bimap.toList $ st ^. connections) $ \(connection, pid) ->
-    sendStateUpdate connection ((st ^. players) Map.! pid) st
+  for_ (st ^.. players . connsPidsProfiles) $ \(connection, _pid, profile) ->
+    sendStateUpdate connection profile st
 
 handle :: Api.Message_C2S -> Pixit ()
 handle Api.Join{playerName} = do
@@ -102,53 +98,42 @@ handle Api.Join{playerName} = do
   thisConnection <- getConnection
 
   -- check if this player already exists
-  case [(pid, p) | (pid, p) <- Map.toList (st ^. players), (p ^. name) == playerName] of
+  case st ^.. players . pidsProfiles . filtered (\pp -> pp ^. _2 . name == playerName) of
     -- existing player
     (pid, player):_ ->
-      case [c | (c, pid') <- Bimap.toList (st ^. connections), pid' == pid] of
+      case st ^. players . connectionForPid pid of
         -- currently connected
-        oldConnection:_ -> do
+        Just oldConnection -> do
           log $ show thisConnection ++ " replaces live player "
             ++ show (oldConnection, player ^. name)
 
           -- replace the player
-          connections %=
-              Bimap.delete oldConnection
-            . Bimap.insert thisConnection pid
+          players %= takeover pid thisConnection
 
           -- close the old connection
           close oldConnection
 
-        -- dead player
-        [] -> do
+        -- suspended player
+        Nothing -> do
           log $ show thisConnection ++ " resurrects dead player "
             ++ show (player ^. name)
 
           -- resurrect the player
-          connections %= Bimap.insert thisConnection pid
-          turns %= append pid
+          players %= takeover pid thisConnection
 
     -- brand new player
     [] -> do
       -- create a new player
       log $ show thisConnection ++ " is a new player"
 
-      modify $ \st -> st
-        & (players . at (st ^. nextPlayerId) .~ Just Player
-            { _name = playerName
-            , _score = 0
-            }
-          )
-        & (connections %~ Bimap.insert thisConnection (st ^. nextPlayerId))
-        & (nextPlayerId %~ (PlayerId . (+1) . unPlayerId))
-        & (turns %~ append pid)
+      players %= insert thisConnection Profile{_name = playerName, _score = 0}
 
   broadcastStateUpdate
 
 handle Api.Broadcast_C2S{broadcast} = do
   Self selfPid _self <- getSelf  -- TODO: remove this
-  connectionsPids <- Bimap.toList <$> use connections
-  for_ connectionsPids $ \(connection, pid) ->
+  cps <- getState <&> \st -> st ^.. players . connectionsPids
+  for_ cps $ \(connection, pid) ->
     when (pid /= selfPid) $
       send connection Api.Broadcast_S2C{broadcast}
 

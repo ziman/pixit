@@ -10,8 +10,8 @@ import Game.WSGame.Engine (HasError(..))
 data Player = Player
   { name :: Text
   , score :: Int
-  , isDead :: Bool
   , isDrawing :: Bool
+  , isSuspended :: Bool
   }
   deriving (Eq, Ord, Show, Generic, ToJSON)
 

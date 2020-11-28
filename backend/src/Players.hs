@@ -1,12 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wno-unused-binds #-}
 module Players
-  ( Players
-  , empty
-  , PlayerId
-  , Self(..)
-  , getSelf
-  , markSelfAsDead
+  ( PlayerId
+  , Players
+  , empty, insert, takeover, suspend
+  , connectionsPids
+  , connectionForPid
+  , pidsProfiles
+  , connsPidsProfiles
+  , Self(..), getSelf
   )
   where
 
@@ -46,9 +48,24 @@ data Players p = Players
 
 makeLenses ''Players
 
-advance :: Turns -> Turns
-advance NoTurns = NoTurns
-advance Turns{past, present, future=[]} =
+connectionsPids :: SimpleFold (Players p) (Connection, PlayerId)
+connectionsPids = folding $ Bimap.toList . _connections
+
+pidsProfiles :: SimpleFold (Players p) (PlayerId, p)
+pidsProfiles = profiles . folding Map.toList
+
+connsPidsProfiles :: SimpleFold (Players p) (Connection, PlayerId, p)
+connsPidsProfiles = folding $ \ps ->
+  [ (connection, pid, (ps ^. profiles) Map.! pid)
+  | (connection, pid) <- ps ^.. connectionsPids
+  ]
+
+connectionForPid :: PlayerId -> SimpleGetter (Players p) (Maybe Connection)
+connectionForPid pid = connections . to (Bimap.lookupR pid)
+
+tAdvance :: Turns -> Turns
+tAdvance NoTurns = NoTurns
+tAdvance Turns{past, present, future=[]} =
   let x:xs = reverse (present : past)
     in Turns
       { past = []
@@ -56,25 +73,29 @@ advance Turns{past, present, future=[]} =
       , future = xs
       }
 
-advance Turns{past, present, future=x:xs} =
+tAdvance Turns{past, present, future=x:xs} =
   Turns
     { past = present : past
     , present = x
     , future = xs
     }
 
-insert :: PlayerId -> Turns -> Turns
-insert pid NoTurns = Turns
+tInsert :: PlayerId -> Turns -> Turns
+tInsert pid NoTurns = Turns
   { past = []
   , present = pid
   , future = []
   }
-insert pid Turns{past, present, future} =
-  Turns{past, present, future = future ++ [pid]}
+tInsert pid turns@Turns{past, present, future}
+  | pid `elem` past || pid == present || pid `elem` future
+  = turns  -- already there
 
-remove :: PlayerId -> Turns -> Turns
-remove _pid NoTurns = NoTurns
-remove pid Turns{past, present, future}
+  | otherwise
+  = Turns{past, present, future = future ++ [pid]}
+
+tRemove :: PlayerId -> Turns -> Turns
+tRemove _pid NoTurns = NoTurns
+tRemove pid Turns{past, present, future}
   | present /= pid
   = Turns
     { past = filter (/= pid) past
@@ -105,6 +126,30 @@ empty = Players
   , _nextPlayerId = PlayerId 1
   }
 
+-- take over a potentially suspended player
+takeover :: PlayerId -> Connection -> Players p -> Players p
+takeover pid connection
+  -- tInsert will ignore already existing pids
+  = (turns %~ tInsert pid)
+
+  -- Bimap.insert will delete all overlapping pairs
+  . (connections %~ Bimap.insert connection pid)
+
+insert :: Connection -> p -> Players p -> Players p
+insert connection profile ps =
+  ps
+    & (profiles . at pid .~ Just profile)
+    & (turns %~ tInsert pid)
+    & (connections %~ Bimap.insert connection pid)
+    & (nextPlayerId %~ (PlayerId . (+1) . unPlayerId))
+  where
+    pid = ps ^. nextPlayerId
+
+suspend :: PlayerId -> Players p -> Players p
+suspend pid
+  = (turns %~ tRemove pid)
+  . (connections %~ Bimap.deleteR pid)
+
 data Self st p = Self
   { _pid :: PlayerId
   , _profile :: Lens' st p
@@ -133,12 +178,3 @@ getSelf players = do
         { _pid = pid
         , _profile = players . profiles . at pid . unwrap
         }
-
-markSelfAsDead :: Lens' st (Players p) -> Game.GameM st eff env Connection ()
-markSelfAsDead players = do
-  connection <- getConnection
-  Self pid _ <- getSelf players
-
-  players %=
-    (connections %~ Bimap.delete connection)
-    . (turns %~ remove pid)
