@@ -72,7 +72,7 @@ onDeadPlayer = do
   broadcastStateUpdate
 
 sendStateUpdate :: Connection -> Profile -> State -> Pixit ()
-sendStateUpdate conn _player st =
+sendStateUpdate conn _profile st =
   send conn $ Api.Update $ Api.State
     { players =
       [ Api.Player
@@ -100,12 +100,12 @@ handle Api.Join{playerName} = do
   -- check if this player already exists
   case st ^.. players . pidsProfiles . filtered (\pp -> pp ^. _2 . name == playerName) of
     -- existing player
-    (pid, player):_ ->
+    (pid, profile):_ ->
       case st ^. players . connectionForPid pid of
         -- currently connected
         Just oldConnection -> do
           log $ show thisConnection ++ " replaces live player "
-            ++ show (oldConnection, player ^. name)
+            ++ show (oldConnection, profile ^. name)
 
           -- replace the player
           players %= takeover pid thisConnection
@@ -116,7 +116,7 @@ handle Api.Join{playerName} = do
         -- suspended player
         Nothing -> do
           log $ show thisConnection ++ " resurrects dead player "
-            ++ show (player ^. name)
+            ++ show (profile ^. name)
 
           -- resurrect the player
           players %= takeover pid thisConnection

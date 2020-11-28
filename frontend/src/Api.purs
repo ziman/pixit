@@ -30,7 +30,7 @@ type Player =
   { name :: String
   , score :: Int
   , isDrawing :: Boolean
-  , isDead :: Boolean
+  , isSuspended :: Boolean
   }
 
 type State =
